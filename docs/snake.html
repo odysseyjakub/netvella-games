@@ -50,12 +50,12 @@ body{overflow-y:auto;background-color:var(--paper);background-image:radial-gradi
 </style>
 </head>
 <body>
-<header class="topbar"><a class="brand" href="./index.html"><span class="pencil" aria-hidden="true">✎</span><span>NOTELET · CLUICHÍ</span></a><div class="top-actions"><a href="./index.html">← Cluichí</a><button class="icon-btn" id="sound-toggle" type="button" aria-label="Fuaim a mhúchadh" title="Fuaim">♫</button></div></header>
+<header class="topbar"><a class="brand" href="./index.html"><span class="pencil" aria-hidden="true">✎</span><span>NOTELET · GAMES</span></a><div class="top-actions"><a href="./index.html">← Games</a><button class="icon-btn" id="sound-toggle" type="button" aria-label="Turn sound off" title="Sound">♫</button></div></header>
 <main class="game-layout">
   <section class="board-column" aria-label="Snake game">
     <div class="game-heading"><div><p class="eyebrow">STUDY SNAKE</p><h1>Notelet Snake</h1></div><p>Collect. Answer. Grow.</p></div>
-    <div class="board-frame"><div class="board" id="board" role="img" aria-label="Clár cluiche Peann Snake"></div></div>
-    <div class="board-note"><span>↑ ↓ ← → nó swipe</span><span id="speed-label">LUAS 1×</span></div>
+    <div class="board-frame"><div class="board" id="board" role="img" aria-label="Snake board"></div></div>
+    <div class="board-note"><span>Arrows or swipe</span><span id="speed-label">SPEED 1×</span></div>
   </section>
   <aside class="panel" aria-label="Score and controls">
     <label class="subject-picker" for="subject-select"><span>SUBJECT</span><select id="subject-select"><option value="maths">Maths</option><option value="science">Science</option><option value="gaeilge" selected>Irish (Gaeilge)</option></select></label>
@@ -157,7 +157,7 @@ body{overflow-y:auto;background-color:var(--paper);background-image:radial-gradi
   function showQuestion(){
     el.question.hidden=false;el.feedback.textContent='';el.feedback.className='feedback';$('question-title').textContent=currentQuestion.q;$('question-help').textContent=currentQuestion.help;$('question-subject').textContent=$('subject-select').value==='gaeilge'?'IRISH · QUICK QUESTION':$('subject-select').value.toUpperCase()+' · QUICK QUESTION';$('question-progress').textContent='PENCIL '+(pencils+1);el.choices.innerHTML='';el.form.hidden=currentQuestion.type!=='text';
     if(currentQuestion.type==='choice'){
-      currentQuestion.choices.forEach((choice,i)=>{const b=document.createElement('button');b.type='button';b.className='answer-choice';b.textContent=(i+1)+'. '+choice;b.dataset.answer=choice;b.addEventListener('click',()=>answer(choice));el.choices.append(b)});
+      currentQuestion.choices.forEach(choice=>{const b=document.createElement('button');b.type='button';b.className='answer-choice';b.textContent=choice;b.dataset.answer=choice;b.addEventListener('click',()=>answer(choice));el.choices.append(b)});
     }else{el.input.value='';setTimeout(()=>el.input.focus(),60)}
   }
   function normalize(s){return String(s||'').toLocaleLowerCase('ga').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').trim().replace(/\s+/g,' ')}
