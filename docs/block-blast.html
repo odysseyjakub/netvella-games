@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="ga">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4efe4">
+  <title>Bloc Blast — Notelet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Silkscreen&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4efe4;
+      --ink: #17120d;
+      --muted: #6b6152;
+      --yellow: #ffbf1f;
+      --pink: #ff3d8b;
+      --blue: #39aaf5;
+      --mint: #53d6a2;
+      --purple: #9d78f5;
+      --orange: #ff8748;
+      --line: rgba(23,18,13,.2);
+      --display: 'Bricolage Grotesque', system-ui, sans-serif;
+      --pixel: 'Silkscreen', monospace;
+      --ease: cubic-bezier(.22,1,.36,1);
+    }
+    * { box-sizing: border-box; }
+    html { width: 100%; height: 100%; min-width: 320px; background: var(--paper); }
+    body {
+      width: 100%; min-width: 320px; height: 100vh; height: 100dvh; min-height: 0; margin: 0; overflow: hidden;
+      display: flex; flex-direction: column;
+      color: var(--ink); font: 16px/1.5 var(--display); -webkit-font-smoothing: antialiased;
+      background-color: var(--paper);
+      background-image: repeating-linear-gradient(transparent 0 31px, rgba(23,18,13,.045) 31px 32px);
+    }
+    button, input { color: inherit; font: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .topbar {
+      position: relative; z-index: 10; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 15px;
+      padding: max(14px,env(safe-area-inset-top)) max(env(safe-area-inset-right),clamp(16px,4vw,48px)) 14px max(env(safe-area-inset-left),clamp(16px,4vw,48px));
+      border-bottom: 2px solid var(--line); background: rgba(244,239,228,.85); backdrop-filter: blur(8px);
+    }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font: 20px var(--pixel); text-decoration: none; }
+    .brand-mark { width: 31px; height: 31px; display: block; image-rendering: pixelated; }
+    .game-shell { width: min(1120px,100%); min-height: 0; flex: 1 1 auto; margin: 0 auto; display: flex; flex-direction: column; gap: clamp(8px,1.5vh,16px); overflow: hidden; padding: clamp(10px,2vw,22px) clamp(13px,3.2vw,36px) max(10px,env(safe-area-inset-bottom)); }
+    .hero { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: clamp(12px,2vw,24px); }
+    .hero-copy { min-width: 0; }
+    .kicker { margin: 0 0 4px; color: #594d3e; font: 8px var(--pixel); letter-spacing: .04em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(25px,3.5vw,38px); line-height: 1.05; letter-spacing: -.04em; }
+    .hero-copy > p:last-child { max-width: 530px; margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .score-strip { display: flex; gap: 8px; }
+    .score-card { min-width: 78px; display: grid; gap: 3px; padding: 7px 10px; border: 2px solid var(--ink); background: rgba(255,255,255,.65); box-shadow: 3px 3px 0 var(--yellow); }
+    .score-card.best { box-shadow: 3px 3px 0 var(--yellow); }
+    .score-card span { color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .score-card strong { font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .score-card strong.bump { animation: score-bump .32s var(--ease); }
+    .play-area { min-height: 0; flex: 1 1 auto; display: grid; grid-template-columns: minmax(0,1.06fr) minmax(290px,.94fr); align-items: center; gap: clamp(12px,2vw,20px); }
+    .board-card, .panel { border: 2px solid var(--ink); background: rgba(255,255,255,.62); }
+    .board-card { position: relative; min-width: 0; min-height: 0; display: grid; justify-items: center; align-content: center; gap: 8px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+    .board-topline, .placement-status { width: min(100%,var(--board-size,min(55vh,520px))); }
+    .board-topline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 auto; color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .board-topline strong { color: var(--ink); font-size: 8px; }
+    .board { width: min(100%,var(--board-size,min(55vh,520px))); aspect-ratio: 1; margin-inline: auto; display: grid; grid-template-columns: repeat(8,minmax(0,1fr)); gap: clamp(2px,.35vw,4px); padding: clamp(4px,.7vw,9px); border: 2px solid var(--ink); border-radius: 14px; background: rgba(255,255,255,.5); box-shadow: 4px 4px 0 var(--yellow); touch-action: manipulation; }
+    .cell { position: relative; min-width: 0; aspect-ratio: 1; padding: 0; overflow: hidden; border: 1px solid rgba(23,18,13,.19); border-radius: clamp(4px,.9vw,9px); background: rgba(244,239,228,.74); transition: background .16s ease, transform .2s var(--ease), box-shadow .16s ease; touch-action: manipulation; }
+    .cell:hover:not(.filled) { background: rgba(255,191,31,.21); }
+    .cell.filled { border-color: var(--ink); }
+    .cell.filled.placing { animation: tile-pop .32s var(--ease) both; }
+    .cell.filled[data-tone="yellow"] { background: var(--yellow); box-shadow: inset -3px -3px 0 rgba(23,18,13,.12); }
+    .cell.filled[data-tone="pink"] { background: var(--pink); box-shadow: inset -3px -3px 0 rgba(23,18,13,.12); }
+    .cell.filled[data-tone="blue"] { background: var(--blue); box-shadow: inset -3px -3px 0 rgba(23,18,13,.12); }
+    .cell.filled[data-tone="mint"] { background: var(--mint); box-shadow: inset -3px -3px 0 rgba(23,18,13,.12); }
+    .cell.filled[data-tone="purple"] { background: var(--purple); box-shadow: inset -3px -3px 0 rgba(23,18,13,.12); }
+    .cell.filled[data-tone="orange"] { background: var(--orange); box-shadow: inset -3px -3px 0 rgba(23,18,13,.12); }
+    .cell.preview::after { content: ''; position: absolute; inset: 1px; border: 2px solid #087f5b; border-radius: inherit; background: rgba(83,214,162,.78); pointer-events: none; }
+    .cell.preview-invalid::after { content: ''; position: absolute; inset: 1px; border: 2px solid #a21c54; border-radius: inherit; background: repeating-linear-gradient(135deg,rgba(255,61,139,.9) 0 5px,rgba(255,61,139,.55) 5px 10px); pointer-events: none; }
+    .cell.clearing { z-index: 1; animation: tile-clear .3s var(--ease) both; }
+    .placement-status { min-height: 18px; margin: 0; color: var(--muted); font-size: 11px; text-align: center; }
+    .placement-status.can-place { color: #087f5b; font-weight: 800; }
+    .placement-status.overlap { color: #a21c54; font-weight: 800; }
+    .placement-status.bonus { color: #a21c54; font-weight: 800; }
+    .score-pop { position: absolute; z-index: 4; top: 48%; left: 50%; max-width: calc(100% - 20px); padding: 9px 16px; border: 2px solid var(--ink); border-radius: 999px; background: linear-gradient(120deg,#fff9d9,#ffd1e5 52%,#d9f4ff); color: var(--ink); font: 12px var(--pixel); text-align: center; white-space: nowrap; pointer-events: none; opacity: 0; transform: translate(-50%,-35%) scale(.7) rotate(-5deg); }
+    .score-pop.show { animation: reward-pop 1.05s var(--ease) both; }
+    .score-pop.big { background: linear-gradient(120deg,#fff1a8,#ffc3e0 48%,#aeeaff); font-size: 14px; }
+    .board.shake { animation: card-shake .3s ease; }
+    .side-stack { min-width: 0; display: grid; align-content: center; gap: 12px; }
+    .panel { min-width: 0; padding: clamp(12px,1.8vw,18px); }
+    .quiz-card { box-shadow: 4px 4px 0 var(--yellow); transition: transform .2s var(--ease), border-color .2s ease; }
+    .quiz-card.shake { animation: card-shake .3s ease; }
+    .quiz-card.is-happy { animation: quiz-happy .42s var(--ease); }
+    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+    .panel-heading h2 { margin: 0; font-size: 15px; }
+    .panel-heading small { color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .question-kind { margin: 0 0 5px; color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .question { margin: 0 0 11px; font-size: clamp(16px,2vw,20px); line-height: 1.22; }
+    .answer-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+    .answer-option { min-width: 0; min-height: 41px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: rgba(244,239,228,.74); text-align: left; font-size: 12px; font-weight: 800; transition: transform .18s var(--ease),background .18s ease; }
+    .answer-option:hover:not(:disabled) { transform: translateY(-2px); background: rgba(255,191,31,.35); }
+    .answer-option.correct { border: 2px solid var(--ink); background: rgba(255,191,31,.62); }
+    .answer-option.wrong { border: 2px solid #a21c54; background: rgba(255,61,139,.2); }
+    .answer-option:disabled { cursor: default; }
+    .answer-form { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 7px; }
+    .answer-form[hidden] { display: none; }
+    .answer-form label { grid-column: 1 / -1; color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .answer-input { min-width: 0; min-height: 41px; padding: 7px 9px; border: 2px solid var(--ink); background: rgba(255,255,255,.88); font-size: 13px; font-weight: 700; }
+    .check-button, .restart-button { min-height: 41px; padding: 7px 12px; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 800; transition: transform .14s ease,box-shadow .14s ease; }
+    .check-button:hover, .restart-button:hover { transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--yellow); }
+    .answer-feedback { min-height: 36px; margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .tray-card { box-shadow: 4px 4px 0 var(--yellow); }
+    .tray-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .tray-heading h2 { margin: 0; font-size: 15px; }
+    .tray-heading span { color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .instructions { margin: 0 0 10px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .piece-tray { min-width: 0; display: flex; align-items: stretch; justify-content: space-between; gap: 7px; }
+    .piece { min-width: 0; min-height: 83px; flex: 0 0 auto; display: grid; align-content: center; justify-items: center; gap: 5px; padding: 7px 4px; border: 1px dashed rgba(23,18,13,.4); border-radius: 12px; background: rgba(244,239,228,.6); color: var(--ink); transition: transform .2s var(--ease),background .2s ease,box-shadow .2s ease; }
+    .piece:hover:not(:disabled) { transform: translateY(-2px); }
+    .piece[aria-pressed="true"] { border: 2px solid var(--ink); background: rgba(255,191,31,.2); box-shadow: 3px 3px 0 var(--pink); }
+    .piece[disabled] { cursor: default; opacity: .4; }
+    .piece-grid { display: grid; grid-template-columns: repeat(var(--piece-columns,4),var(--preview-cell-size,12px)); gap: var(--preview-cell-gap,2px); }
+    .piece-cell { width: var(--preview-cell-size,12px); aspect-ratio: 1; background: transparent; }
+    .piece-cell.on { border: 1px solid var(--ink); border-radius: 3px; background: var(--yellow); box-shadow: inset -2px -2px 0 rgba(23,18,13,.12); }
+    .piece[data-tone="pink"] .piece-cell.on { background: var(--pink); }
+    .piece[data-tone="blue"] .piece-cell.on { background: var(--blue); }
+    .piece[data-tone="mint"] .piece-cell.on { background: var(--mint); }
+    .piece[data-tone="purple"] .piece-cell.on { background: var(--purple); }
+    .piece[data-tone="orange"] .piece-cell.on { background: var(--orange); }
+    .piece-name { max-width: 100%; color: var(--muted); font: 6px var(--pixel); text-align: center; overflow-wrap: anywhere; }
+    .piece[aria-pressed="true"] .piece-name { color: #a21c54; }
+    .tray-footer { display: flex; align-items: center; gap: 9px; margin-top: 10px; }
+    .restart-button { min-height: 36px; padding: 6px 10px; background: var(--yellow); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+    .tray-note { margin: 0; color: var(--muted); font-size: 9px; }
+    .footer-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 5px; color: var(--muted); font: 7px var(--pixel); text-transform: uppercase; }
+    .footer-note strong { color: var(--ink); }
+    .game-over { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(244,239,228,.8); backdrop-filter: blur(7px); animation: overlay-in .22s ease both; }
+    .game-over[hidden] { display: none; }
+    .game-over-card { width: min(420px,100%); display: grid; justify-items: center; gap: 10px; padding: clamp(20px,4vw,32px); border: 2px solid var(--ink); background: var(--paper); box-shadow: 7px 7px 0 var(--pink); text-align: center; animation: card-in .35s var(--ease) both; }
+    .game-over-card h2 { margin: 0; font-size: clamp(26px,6vw,38px); line-height: 1; }
+    .game-over-card p { max-width: 340px; margin: 0; color: var(--muted); font-size: 13px; }
+    .game-over-score { padding: 7px 12px; border: 1px solid var(--line); background: rgba(255,191,31,.2); font: 8px var(--pixel); }
+    .game-over-card .restart-button { min-height: 42px; margin-top: 4px; padding: 8px 16px; font-size: 12px; }
+    @keyframes tile-pop { 0% { transform: scale(.72) translateY(3px); opacity: .55; } 68% { transform: scale(1.08) translateY(0); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes tile-clear { 0% { transform: scale(1); opacity: 1; } 55% { transform: scale(1.08); filter: brightness(1.08); } 100% { transform: scale(.2); opacity: 0; } }
+    @keyframes score-bump { 45% { transform: translateY(-3px) scale(1.16); color: #a21c54; } }
+    @keyframes reward-pop { 0% { opacity: 0; transform: translate(-50%,-15%) scale(.55) rotate(-7deg); } 18% { opacity: 1; transform: translate(-50%,-50%) scale(1.12) rotate(3deg); } 32% { transform: translate(-50%,-45%) scale(1) rotate(0); } 78% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-150%) scale(.92) rotate(2deg); } }
+    @keyframes card-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    @keyframes quiz-happy { 35% { transform: translateY(-3px); border-color: var(--yellow); } 70% { transform: translateY(1px); } }
+    @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes card-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: minmax(0,1fr) auto; }
+      .play-area { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; gap: 10px; }
+      .board-card { grid-column: 1 / -1; }
+      .side-stack { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; align-items: start; gap: 9px; }
+      .panel { padding: 11px; }
+      .answer-feedback { min-height: 25px; margin-top: 5px; }
+      .piece { min-height: 67px; }
+    }
+    @media (min-width: 1200px) {
+      .game-shell { width: min(1760px,100%); padding-right: clamp(32px,3.8vw,72px); padding-left: clamp(32px,3.8vw,72px); }
+      .play-area { grid-template-columns: minmax(0,.9fr) minmax(500px,1.1fr); gap: clamp(20px,2.2vw,38px); }
+      .side-stack { gap: clamp(14px,1.6vw,24px); }
+      .panel { padding: clamp(16px,1.5vw,24px); }
+      .panel-heading h2, .tray-heading h2 { font-size: clamp(16px,1.1vw,20px); }
+      .question { font-size: clamp(19px,1.45vw,25px); }
+      .answer-option { min-height: 48px; font-size: 14px; }
+      .piece { min-height: 104px; }
+    }
+    @media (max-width: 600px) {
+      .topbar { padding-right: max(12px,env(safe-area-inset-right)); padding-left: max(12px,env(safe-area-inset-left)); padding-top: max(9px,env(safe-area-inset-top)); padding-bottom: 9px; }
+      .brand { gap: 8px; font-size: 17px; }
+      .brand-mark { width: 28px; height: 28px; }
+      .game-shell { gap: 7px; padding: 8px 10px max(8px,env(safe-area-inset-bottom)); }
+      .hero { grid-template-columns: minmax(0,1fr) auto; gap: 6px; }
+      h1 { font-size: clamp(25px,7.4vw,34px); }
+      .hero-copy > p:last-child { display: none; }
+      .score-strip { gap: 5px; }
+      .score-card { min-width: 58px; gap: 2px; padding: 5px 6px; }
+      .score-card span { font-size: 6px; }
+      .score-card strong { font-size: 15px; }
+      .play-area { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; align-items: stretch; gap: 5px; }
+      .board-card { grid-column: 1; gap: 3px; }
+      .board-topline { margin-bottom: 0; }
+      .board { gap: 2px; padding: 4px; border-radius: 12px; }
+      .cell.filled { box-shadow: inset -1px -1px 0 rgba(23,18,13,.1) !important; }
+      .placement-status { min-height: 16px; margin-top: 4px; font-size: 9px; line-height: 1.25; }
+      .side-stack { grid-column: 1; grid-row: 2; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; align-content: start; gap: 6px; min-height: 0; }
+      .panel { min-height: 0; padding: 8px; }
+      .panel-heading { gap: 4px; margin-bottom: 5px; }
+      .panel-heading h2, .tray-heading h2 { font-size: 12px; }
+      .panel-heading small, .tray-heading span { font-size: 6px; }
+      .question-kind { margin-bottom: 3px; font-size: 6px; }
+      .question { margin-bottom: 6px; font-size: 14px; }
+      .answer-options { gap: 4px; }
+      .answer-option { min-height: 34px; padding: 4px 5px; font-size: 10px; }
+      .answer-form { gap: 4px; }
+      .answer-form label { font-size: 6px; }
+      .answer-input, .check-button { min-height: 34px; padding: 5px; font-size: 10px; }
+      .answer-feedback { min-height: 26px; margin-top: 4px; font-size: 9px; line-height: 1.25; }
+      .tray-heading { gap: 3px; margin-bottom: 3px; }
+      .instructions { margin-bottom: 5px; font-size: 8px; line-height: 1.25; }
+      .piece-tray { gap: 4px; }
+      .piece { min-height: 52px; gap: 3px; padding: 4px 2px; }
+      .piece-name { font-size: 5px; }
+      .tray-footer { gap: 5px; margin-top: 6px; }
+      .restart-button { min-height: 30px; padding: 4px 6px; font-size: 9px; }
+      .tray-note { font-size: 7px; line-height: 1.2; }
+      .footer-note { gap: 5px; margin-top: 0; padding-top: 0; font-size: 5px; }
+    }
+    @media (max-height: 700px) {
+      .game-shell { gap: 7px; padding-top: 8px; padding-bottom: max(7px,env(safe-area-inset-bottom)); }
+      .hero-copy > p:last-child { margin-top: 3px; font-size: 10px; }
+      .panel { padding: 9px; }
+      .answer-feedback { min-height: 22px; margin-top: 4px; }
+      .piece { min-height: 58px; }
+    }
+    @media (max-width: 820px) and (max-height: 700px) {
+      .play-area { grid-template-rows: minmax(0,1fr) auto; }
+      .side-stack { gap: 6px; }
+      .footer-note { display: none; }
+      .instructions, .tray-note { display: none; }
+      .panel { padding: 7px; }
+      .answer-option { min-height: 32px; }
+      .piece { min-height: 45px; }
+    }
+    @media (max-width: 820px) and (max-height: 540px) {
+      .side-stack { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; }
+      .panel { padding: 5px; }
+      .answer-feedback { min-height: 15px; font-size: 8px; }
+    }
+    @media (max-width: 600px) and (max-height: 700px) {
+      .game-shell { gap: 5px; padding-top: 5px; padding-bottom: max(5px,env(safe-area-inset-bottom)); }
+      .board-card { gap: 3px; }
+      .panel { padding: 6px; }
+      .panel-heading { margin-bottom: 3px; }
+      .question { margin-bottom: 4px; font-size: 12px; }
+      .answer-option { min-height: 29px; padding: 3px 4px; font-size: 9px; }
+      .answer-feedback { min-height: 20px; font-size: 8px; }
+      .instructions { font-size: 7px; }
+      .piece { min-height: 44px; }
+      .tray-note { display: none; }
+    }
+    @media (max-height: 540px) {
+      .game-shell { gap: 4px; padding-top: 5px; padding-bottom: max(5px,env(safe-area-inset-bottom)); }
+      .hero-copy > p:last-child, .footer-note, .instructions, .tray-note { display: none; }
+      .side-stack { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+      .panel { padding: 7px; }
+      .panel-heading { margin-bottom: 4px; }
+      .question { margin-bottom: 5px; font-size: 13px; }
+      .answer-option { min-height: 31px; padding: 4px 6px; font-size: 10px; }
+      .answer-feedback { min-height: 19px; margin-top: 4px; font-size: 9px; }
+      .piece { min-height: 48px; }
+      .instructions { margin: 0; }
+    }
+    @media (max-width: 820px) and (max-height: 540px) {
+      .side-stack { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; }
+    }
+    @media (max-width: 600px) and (max-height: 540px) {
+      .play-area { grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; gap: 3px; }
+      .board-card { grid-column: 1; grid-row: 1; }
+      .side-stack { grid-column: 1; grid-row: 2; gap: 3px; }
+      .side-stack { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto; }
+      .piece { min-height: 32px; }
+      .answer-option { min-height: 28px; font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html" aria-label="Notelet">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" shape-rendering="crispEdges">
+        <path fill="#17120d" d="M5 24 22 5l6 5L11 29H5z"/><path fill="#ffbf1f" d="m7 23 15-16 3 3-15 17H7z"/><path fill="#ff3d8b" d="m22 5 3-2 5 5-2 2z"/><path fill="#f4efe4" d="M5 24 4 29l7-1z"/><path fill="#17120d" d="M4 29h7l-5-5z"/>
+      </svg>
+      <span>notelet</span>
+    </a>
+  </header>
+
+  <main class="game-shell" id="game-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="kicker">CLUICHE FOCAL · NÓTALET</p>
+        <h1>Bloc Blast</h1>
+        <p>Freagair, cuir bloic síos agus glan línte.</p>
+      </div>
+      <div class="score-strip" aria-label="Scór">
+        <div class="score-card"><span>Scór</span><strong id="score">0</strong></div>
+        <div class="score-card best"><span>Is fearr</span><strong id="best-score">0</strong></div>
+      </div>
+    </header>
+
+    <div class="play-area" id="play-area">
+      <section class="board-card" id="board-card" aria-label="Clár Bloc Blast">
+        <div class="board-topline" id="board-topline"><span>AN CLÁR IMEARTHA</span><strong>8 × 8</strong></div>
+        <div class="board" id="board" role="grid" aria-label="Greille ocht ar ocht"></div>
+        <div class="score-pop" id="score-pop" aria-hidden="true"></div>
+        <p class="placement-status" id="placement-status" aria-live="polite">Freagair ceist chun do chéad bhloc a dhíghlasáil.</p>
+      </section>
+
+      <aside class="side-stack" id="side-stack">
+        <section class="panel quiz-card" id="quiz-card" aria-labelledby="quiz-heading">
+          <div class="panel-heading"><h2 id="quiz-heading">Focal Gaeilge</h2><small id="question-number">CEIST 1</small></div>
+          <p class="question-kind" id="question-kind">FREAGRA ILROGHNACH</p>
+          <p class="question" id="question">Cén Ghaeilge atá ar “water”?</p>
+          <div class="answer-options" id="answer-options"></div>
+          <form class="answer-form" id="answer-form" hidden>
+            <label for="answer-input">Scríobh do fhreagra</label>
+            <input class="answer-input" id="answer-input" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Do fhreagra as Gaeilge">
+            <button class="check-button" type="submit">Seiceáil</button>
+          </form>
+          <p class="answer-feedback" id="answer-feedback" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel tray-card" aria-labelledby="tray-heading">
+          <div class="tray-heading"><h2 id="tray-heading">Do bhloic</h2><span>3 chruth</span></div>
+          <p class="instructions">Freagair ceist amháin chun na trí bhloc a dhíghlasáil. Cuir síos iad in ord ar bith.</p>
+          <div class="piece-tray" id="piece-tray" aria-label="Tráidire na mbloc"></div>
+          <div class="tray-footer"><button class="restart-button" id="new-game" type="button">Cluiche nua</button><p class="tray-note">Do dhul chun cinn ar an ngléas seo.</p></div>
+        </section>
+      </aside>
+    </div>
+    <footer class="footer-note"><span><strong>notelet</strong> · CLEACHTAÍ AGUS IMIR</span><span id="round-label">BABHTA 1</span></footer>
+  </main>
+
+  <section class="game-over" id="game-over" role="dialog" aria-modal="true" aria-labelledby="game-over-heading" hidden>
+    <div class="game-over-card">
+      <p class="kicker">CRÍOCH AN CHLUICHE</p>
+      <h2 id="game-over-heading">Maith thú as imirt!</h2>
+      <p id="game-over-copy">Níl spás ann do na bloic eile. Bain triail eile as?</p>
+      <span class="game-over-score" id="final-score">SCÓR · 0</span>
+      <button class="restart-button" id="play-again" type="button">Bain triail eile as</button>
+    </div>
+  </section>
+
+  <script>
+    const gridSize = 8;
+    const blockTones = ['yellow','pink','blue','mint','purple','orange'];
+    const bestKey = 'notelet.block-blast.best.v2';
+    const boardElement = document.getElementById('board');
+    const boardCard = document.getElementById('board-card');
+    const boardTopline = document.getElementById('board-topline');
+    const playArea = document.getElementById('play-area');
+    const sideStack = document.getElementById('side-stack');
+    const pieceTrayElement = document.getElementById('piece-tray');
+    const scoreElement = document.getElementById('score');
+    const bestScoreElement = document.getElementById('best-score');
+    const questionElement = document.getElementById('question');
+    const questionNumberElement = document.getElementById('question-number');
+    const questionKindElement = document.getElementById('question-kind');
+    const answerOptionsElement = document.getElementById('answer-options');
+    const answerForm = document.getElementById('answer-form');
+    const answerInput = document.getElementById('answer-input');
+    const answerFeedback = document.getElementById('answer-feedback');
+    const placementStatus = document.getElementById('placement-status');
+    const scorePop = document.getElementById('score-pop');
+    const quizCard = document.getElementById('quiz-card');
+    const gameOverElement = document.getElementById('game-over');
+    const gameOverCopy = document.getElementById('game-over-copy');
+    const finalScoreElement = document.getElementById('final-score');
+    const roundLabel = document.getElementById('round-label');
+    const shapes = [
+      { name: 'Cearnóg', cells: [[0,0],[0,1],[1,0],[1,1]] },
+      { name: 'Líne fhada', cells: [[0,0],[0,1],[0,2],[0,3]] },
+      { name: 'Colún', cells: [[0,0],[1,0],[2,0],[3,0]] },
+      { name: 'Cúinne', cells: [[0,0],[1,0],[1,1]] },
+      { name: 'Cúinne mór', cells: [[0,0],[1,0],[2,0],[2,1]] },
+      { name: 'T', cells: [[0,0],[0,1],[0,2],[1,1]] },
+      { name: 'S', cells: [[0,1],[0,2],[1,0],[1,1]] },
+      { name: 'Bloc', cells: [[0,0]] },
+      { name: 'Líne bheag', cells: [[0,0],[0,1],[0,2]] },
+      { name: 'Cros', cells: [[0,1],[1,0],[1,1],[1,2],[2,1]] }
+    ];
+    const vocabulary = [
+      ['water','uisce'], ['fire','tine'], ['cow','bó'], ['day','lá'], ['book','leabhar'], ['school','scoil'],
+      ['dog','madra'], ['tree','crann'], ['friend','cara'], ['milk','bainne'], ['night','oíche'], ['house','teach'],
+      ['food','bia'], ['rain','báisteach'], ['sun','grian'], ['apple','úll'], ['sea','farraige'], ['cat','cat'],
+      ['horse','capall'], ['sheep','caora'], ['bird','éan'], ['fish','iasc'], ['bread','arán'], ['tea','tae'],
+      ['coffee','caife'], ['cheese','cáis'], ['egg','ubh'], ['meat','feoil'], ['potato','práta'], ['carrot','cairéad'],
+      ['butter','im'], ['mother','máthair'], ['father','athair'], ['brother','deartháir'], ['sister','deirfiúr'],
+      ['child','páiste'], ['boy','buachaill'], ['girl','cailín'], ['teacher','múinteoir'], ['student','dalta'],
+      ['family','teaghlach'], ['door','doras'], ['window','fuinneog'], ['chair','cathaoir'], ['table','bord'],
+      ['pen','peann'], ['pencil','peann luaidhe'], ['copybook','cóipleabhar'], ['question','ceist'], ['answer','freagra'],
+      ['lesson','ceacht'], ['class','rang'], ['shop','siopa'], ['town','baile'], ['road','bóthar'], ['street','sráid'],
+      ['garden','gairdín'], ['room','seomra'], ['bed','leaba'], ['church','séipéal'], ['language','teanga'], ['word','focal'],
+      ['music','ceol'], ['song','amhrán'], ['story','scéal'], ['Ireland','Éire'], ['Irish','Gaeilge'], ['English','Béarla'],
+      ['green','glas'], ['red','dearg'], ['blue','gorm'], ['black','dubh'], ['white','bán'], ['yellow','buí'],
+      ['purple','corcra'], ['orange','oráiste'], ['grey','liath'], ['brown','donn'], ['pink','bándearg'], ['big','mór'],
+      ['small','beag'], ['good','maith'], ['bad','dona'], ['happy','sásta'], ['tired','tuirseach'], ['cold','fuar'],
+      ['hot','te'], ['beautiful','álainn'], ['fast','tapa'], ['slow','mall'], ['new','nua'], ['old','sean'],
+      ['easy','éasca'], ['difficult','deacair'], ['clean','glan'], ['strong','láidir'], ['morning','maidin'],
+      ['evening','tráthnóna'], ['week','seachtain'], ['month','mí'], ['year','bliain'], ['today','inniu'],
+      ['tomorrow','amárach'], ['yesterday','inné'], ['spring','earrach'], ['summer','samhradh'], ['autumn','fómhar'],
+      ['winter','geimhreadh'], ['snow','sneachta'], ['wind','gaoth'], ['sky','spéir'], ['moon','gealach'],
+      ['river','abhainn'], ['mountain','sliabh'], ['beach','trá'], ['forest','foraois'], ['flower','bláth'], ['grass','féar'],
+      ['stone','cloch'], ['lake','loch'], ['cloud','scamall'], ['weather','aimsir'], ['rabbit','coinín'], ['pig','muc'],
+      ['duck','lacha'], ['chicken','sicín'], ['goat','gabhar'], ['fox','sionnach'], ['deer','fia'], ['hello','dia duit'],
+      ['goodbye','slán'], ['please','le do thoil'], ['thank you','go raibh maith agat'], ['yes','tá'], ['no','níl']
+    ];
+    const questions = vocabulary.map(([english, answer], index) => {
+      const type = index % 2 === 0 ? 'choice' : 'text';
+      const phrase = english.includes(' ');
+      const choices = [answer];
+      for (let offset = 1; choices.length < 4; offset += 1) {
+        const distractor = vocabulary[(index + offset * 7) % vocabulary.length][1];
+        if (!choices.includes(distractor)) choices.push(distractor);
+      }
+      return {
+        type,
+        prompt: type === 'choice'
+          ? `Cén Ghaeilge atá ar “${english}”?`
+          : `Scríobh an ${phrase ? 'frása' : 'focal'} Gaeilge ar “${english}”.`,
+        answer,
+        choices: type === 'choice' ? choices : null,
+        note: `Ciallaíonn “${answer}” “${english}”.`
+      };
+    });
+    let board = Array.from({ length: gridSize }, () => Array(gridSize).fill(''));
+    let pieces = [];
+    let selectedPieceIndex = 0;
+    let score = 0;
+    let bestScore = 0;
+    let questionCursor = 0;
+    let questionDeck = [];
+    let currentQuestion = null;
+    let answerUnlocked = false;
+    let wrongChoices = [];
+    let questionFeedback = '';
+    let round = 1;
+    let gameFinished = false;
+    let busy = false;
+    let lineCombo = 0;
+    let placementMessage = 'Freagair ceist amháin chun na trí chruth a dhíghlasáil.';
+    let audioContext = null;
+    const soundEnabled = true;
+
+    function readStorage(key) { try { return localStorage.getItem(key); } catch { return null; } }
+    function writeStorage(key, value) { try { localStorage.setItem(key, value); } catch {} }
+    function shuffled(values) {
+      const result = [...values];
+      for (let index = result.length - 1; index > 0; index -= 1) {
+        const swap = Math.floor(Math.random() * (index + 1));
+        [result[index], result[swap]] = [result[swap], result[index]];
+      }
+      return result;
+    }
+    function makePiece(tone) {
+      const shape = shapes[Math.floor(Math.random() * shapes.length)];
+      return {
+        name: shape.name,
+        cells: shape.cells.map(([row, column]) => [row, column]),
+        tone,
+        unlocked: false
+      };
+    }
+    function nextQuestion() {
+      if (!questionDeck.length) questionDeck = shuffled(questions);
+      const question = questionDeck.pop();
+      questionCursor += 1;
+      return { ...question, choices: question.choices ? shuffled(question.choices) : null, number: questionCursor };
+    }
+    function makeTray() {
+      const tone = blockTones[Math.floor(Math.random() * blockTones.length)];
+      return Array.from({ length: 3 }, () => makePiece(tone));
+    }
+    function newGame() {
+      board = Array.from({ length: gridSize }, () => Array(gridSize).fill(''));
+      score = 0;
+      round = 1;
+      questionCursor = 0;
+      questionDeck = shuffled(questions);
+      currentQuestion = nextQuestion();
+      answerUnlocked = false;
+      wrongChoices = [];
+      questionFeedback = '';
+      pieces = makeTray();
+      selectedPieceIndex = 0;
+      gameFinished = false;
+      busy = false;
+      lineCombo = 0;
+      placementMessage = 'Freagair ceist amháin chun na trí chruth a dhíghlasáil.';
+      gameOverCopy.textContent = 'Níl spás ann do na bloic eile. Bain triail eile as?';
+      try { bestScore = Math.max(bestScore, Number.parseInt(readStorage(bestKey) || '0', 10) || 0); } catch { bestScore = 0; }
+      render();
+    }
+    function activePiece() {
+      if (selectedPieceIndex < 0 || !pieces[selectedPieceIndex]) selectedPieceIndex = pieces.findIndex(Boolean);
+      return pieces[selectedPieceIndex] || null;
+    }
+    function fits(shape, startRow, startColumn) {
+      return shape.every(([row, column]) => {
+        const targetRow = startRow + row;
+        const targetColumn = startColumn + column;
+        return targetRow >= 0 && targetRow < gridSize && targetColumn >= 0 && targetColumn < gridSize && !board[targetRow][targetColumn];
+      });
+    }
+    function anyPieceFits() {
+      return pieces.some((piece) => {
+        if (!piece) return false;
+        for (let row = 0; row < gridSize; row += 1) {
+          for (let column = 0; column < gridSize; column += 1) if (fits(piece.cells, row, column)) return true;
+        }
+        return false;
+      });
+    }
+    function bump(element) {
+      element.classList.remove('bump');
+      void element.offsetWidth;
+      element.classList.add('bump');
+    }
+    function updateScore(points) {
+      score += points;
+      scoreElement.textContent = score.toLocaleString('ga-IE');
+      bump(scoreElement);
+      if (score > bestScore) {
+        bestScore = score;
+        bestScoreElement.textContent = bestScore.toLocaleString('ga-IE');
+        writeStorage(bestKey, String(bestScore));
+      }
+    }
+    function showReward(label, points, big = false) {
+      scorePop.textContent = `${label} +${points} pointe`;
+      scorePop.classList.remove('show','big');
+      void scorePop.offsetWidth;
+      scorePop.classList.add('show');
+      if (big) scorePop.classList.add('big');
+    }
+    function syncPreviewSize() {
+      if (!boardElement.querySelector || !window.getComputedStyle) return;
+      const firstCell = boardElement.querySelector('.cell');
+      if (!firstCell || !window.getComputedStyle) return;
+      const cellSize = firstCell.getBoundingClientRect().width;
+      const boardGap = window.getComputedStyle(boardElement).columnGap;
+      if (cellSize > 0) pieceTrayElement.style.setProperty('--preview-cell-size', `${cellSize}px`);
+      pieceTrayElement.style.setProperty('--preview-cell-gap', boardGap || '2px');
+      const gapSize = Number.parseFloat(boardGap) || 2;
+      pieceTrayElement.querySelectorAll?.('.piece').forEach((item) => {
+        const itemGrid = item.querySelector('.piece-grid');
+        const columns = Number.parseInt(itemGrid?.style.getPropertyValue('--piece-columns') || '1',10) || 1;
+        const itemStyle = window.getComputedStyle(item);
+        const insets = ['paddingLeft','paddingRight','borderLeftWidth','borderRightWidth']
+          .reduce((total,property) => total + (Number.parseFloat(itemStyle[property]) || 0),0);
+        item.style.width = `${columns * cellSize + (columns - 1) * gapSize + insets}px`;
+      });
+    }
+    function fitBoard() {
+      if (!boardCard.getBoundingClientRect || !window.getComputedStyle || !boardElement.querySelector) return;
+      const firstCell = boardElement.querySelector('.cell');
+      if (!firstCell || !pieces.length) return;
+
+      const boardStyle = window.getComputedStyle(boardElement);
+      const boardGap = Number.parseFloat(boardStyle.columnGap) || 0;
+      const boardInsets = ['paddingLeft','paddingRight','borderLeftWidth','borderRightWidth']
+        .reduce((total, property) => total + (Number.parseFloat(boardStyle[property]) || 0), 0);
+      const piece = pieceTrayElement.querySelector('.piece');
+      if (!piece) return;
+      const pieceStyle = window.getComputedStyle(piece);
+      const pieceInsets = ['paddingLeft','paddingRight','borderLeftWidth','borderRightWidth']
+        .reduce((total, property) => {
+          const value = Number.parseFloat(pieceStyle[property]) || 0;
+          return total + (property.startsWith('border') ? Math.max(2,value) : value);
+        }, 0);
+      const trayGap = Number.parseFloat(window.getComputedStyle(pieceTrayElement).columnGap) || 0;
+      const widestShape = Math.max(...shapes.map((shape) => Math.max(...shape.cells.map(([,column]) => column + 1))));
+      const totalPieceColumns = pieces.length * widestShape;
+      const previewFixedWidth = pieces.length * pieceInsets
+        + Math.max(0,pieces.length - 1) * trayGap
+        + Math.max(0,totalPieceColumns - pieces.length) * boardGap;
+      const pieceCellCap = Math.max(1,(pieceTrayElement.clientWidth - previewFixedWidth) / totalPieceColumns);
+      const widthForPreview = gridSize * pieceCellCap + (gridSize - 1) * boardGap + boardInsets;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 800;
+      let size = Math.min(boardCard.clientWidth,760,viewportHeight * .8,widthForPreview);
+      if (!(size > 0)) return;
+
+      const stacked = window.matchMedia?.('(max-width: 820px)').matches ?? false;
+      const areaGap = Number.parseFloat(window.getComputedStyle(playArea).rowGap) || 0;
+      const boardCardGap = Number.parseFloat(window.getComputedStyle(boardCard).rowGap) || 0;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        boardCard.style.setProperty('--board-size', `${size}px`);
+        boardElement.style.width = `${size}px`;
+        syncPreviewSize();
+        const neededHeight = boardElement.getBoundingClientRect().height
+          + boardTopline.getBoundingClientRect().height
+          + placementStatus.getBoundingClientRect().height
+          + boardCardGap * 2
+          + (stacked ? sideStack.getBoundingClientRect().height + areaGap : 0);
+        const overflow = neededHeight - playArea.clientHeight;
+        if (overflow <= 1) break;
+        size = Math.max(64,size - overflow - 1);
+      }
+    }
+    function pieceMarkup(piece, index) {
+      if (!piece) return '<div class="piece" aria-hidden="true"><span class="piece-name">✓</span></div>';
+      const rows = Math.max(...piece.cells.map(([row]) => row)) + 1;
+      const columns = Math.max(...piece.cells.map(([, column]) => column)) + 1;
+      const occupied = new Set(piece.cells.map(([row, column]) => `${row}:${column}`));
+      const blockMarks = Array.from({ length: rows * columns }, (_, cellIndex) => {
+        const row = Math.floor(cellIndex / columns);
+        const column = cellIndex % columns;
+        return `<i class="piece-cell${occupied.has(`${row}:${column}`) ? ' on' : ''}" aria-hidden="true"></i>`;
+      }).join('');
+      return `<button class="piece" type="button" data-piece="${index}" data-tone="${piece.tone}" aria-label="Roghnaigh cruth ${index + 1}, ${piece.name}${piece.unlocked ? ', díghlasáilte' : ', faoi ghlas'}" aria-pressed="${index === selectedPieceIndex}"${gameFinished || busy ? ' disabled' : ''}><span class="piece-grid" style="--piece-columns:${columns}">${blockMarks}</span><span class="piece-name">${piece.unlocked ? 'DÍGHLASÁILTE' : `CRUTH ${index + 1}`}</span></button>`;
+    }
+    function renderBoard(clearCells = new Set(), popCells = new Set()) {
+      const fragment = document.createDocumentFragment();
+      board.forEach((line, row) => line.forEach((tone, column) => {
+        const index = row * gridSize + column;
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = `cell${tone ? ' filled' : ''}${clearCells.has(index) ? ' clearing' : ''}${tone && popCells.has(index) && !clearCells.has(index) ? ' placing' : ''}`;
+        if (cell.classList.contains('placing')) cell.style.animationDelay = `${[...popCells].indexOf(index) * 16}ms`;
+        cell.dataset.cell = String(index);
+        cell.setAttribute('role', 'gridcell');
+        cell.setAttribute('aria-label', `Ró ${row + 1}, colún ${column + 1}, ${tone ? 'bloc curtha' : 'folamh'}`);
+        if (tone) cell.dataset.tone = tone;
+        cell.disabled = gameFinished || busy;
+        fragment.append(cell);
+      }));
+      boardElement.replaceChildren(fragment);
+    }
+    function renderQuiz() {
+      if (!currentQuestion) {
+        questionNumberElement.textContent = 'CRÍOCH';
+        questionKindElement.textContent = 'NÍL CEIST AR FÁIL';
+        questionElement.textContent = 'Cluiche nua chun tosú.';
+        answerOptionsElement.hidden = true;
+        answerForm.hidden = true;
+        return;
+      }
+      questionNumberElement.textContent = `CEIST ${currentQuestion.number}`;
+      questionKindElement.textContent = answerUnlocked ? 'TRÍ CHRUTH AR FÁIL' : currentQuestion.type === 'choice' ? 'FREAGRA ILROGHNACH' : 'FREAGRA CLÓSCRÍOFA';
+      questionElement.textContent = currentQuestion.prompt;
+      answerOptionsElement.hidden = answerUnlocked || currentQuestion.type !== 'choice';
+      answerOptionsElement.replaceChildren();
+      if (currentQuestion.type === 'choice') currentQuestion.choices.forEach((choice) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = `answer-option${wrongChoices.includes(choice) ? ' wrong' : ''}${answerUnlocked && choice === currentQuestion.answer ? ' correct' : ''}`;
+        option.dataset.choice = choice;
+        option.textContent = choice;
+        option.disabled = gameFinished || busy || answerUnlocked || wrongChoices.includes(choice);
+        answerOptionsElement.append(option);
+      });
+      answerForm.hidden = answerUnlocked || currentQuestion.type !== 'text';
+      answerInput.disabled = gameFinished || busy || answerUnlocked;
+      answerInput.value = '';
+      answerFeedback.textContent = questionFeedback;
+      placementStatus.classList.remove('can-place','overlap');
+      placementStatus.textContent = placementMessage;
+    }
+    function render(popCells = new Set()) {
+      scoreElement.textContent = score.toLocaleString('ga-IE');
+      bestScoreElement.textContent = bestScore.toLocaleString('ga-IE');
+      roundLabel.textContent = `BABHTA ${round}`;
+      renderBoard(new Set(), popCells);
+      pieceTrayElement.innerHTML = pieces.map(pieceMarkup).join('');
+      syncPreviewSize();
+      renderQuiz();
+      gameOverElement.hidden = !gameFinished;
+      if (gameFinished) {
+        finalScoreElement.textContent = `SCÓR · ${score.toLocaleString('ga-IE')}`;
+        document.getElementById('play-again').focus({ preventScroll: true });
+      }
+    }
+    function playTone(frequency, duration = .12, delay = 0, wave = 'sine', volume = .045, slideTo = null) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!soundEnabled || !AudioContextClass) return;
+      try {
+        audioContext ||= new AudioContextClass();
+        if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+        const start = audioContext.currentTime + delay;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = wave;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        if (slideTo) oscillator.frequency.exponentialRampToValueAtTime(slideTo, start + duration);
+        gain.gain.setValueAtTime(.0001, start);
+        gain.gain.exponentialRampToValueAtTime(volume, start + Math.min(.018, duration / 3));
+        gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start(start);
+        oscillator.stop(start + duration + .02);
+      } catch {}
+    }
+    function sound(name) {
+      if (!soundEnabled) return;
+      if (name === 'correct') [523,659,784].forEach((note,index) => playTone(note,.16,index*.075,'sine',.035));
+      else if (name === 'partial') [440,554].forEach((note,index) => playTone(note,.18,index*.09,'triangle',.032));
+      else if (name === 'wrong') playTone(240,.2,0,'triangle',.05,145);
+      else if (name === 'place') { playTone(390,.1,0,'sine',.04,260); playTone(610,.08,.025,'triangle',.025); }
+      else if (name === 'clear') [523,659,784,1047].forEach((note,index) => playTone(note,.23,index*.065,'triangle',.037));
+      else if (name === 'over') [392,330,262].forEach((note,index) => playTone(note,.2,index*.12,'sine',.032));
+      else if (name === 'restart') playTone(440,.12,0,'sine',.03,660);
+    }
+    function normalizeAnswer(value) {
+      return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
+    }
+    function editDistance(left, right) {
+      let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+      for (let row = 1; row <= left.length; row += 1) {
+        const current = [row];
+        for (let column = 1; column <= right.length; column += 1) current[column] = Math.min(current[column-1]+1,previous[column]+1,previous[column-1]+(left[row-1]===right[column-1]?0:1));
+        previous = current;
+      }
+      return previous[right.length];
+    }
+    function gradeTyped(value, expected) {
+      const raw = value.normalize('NFC').toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
+      const folded = normalizeAnswer(value);
+      const foldedExpected = normalizeAnswer(expected);
+      if (!folded) return 'wrong';
+      if (raw === expected.toLocaleLowerCase()) return 'correct';
+      if (folded === foldedExpected) return 'partial';
+      return 1 - editDistance(folded,foldedExpected)/Math.max(folded.length,foldedExpected.length,1) >= .72 ? 'partial' : 'wrong';
+    }
+    function shakeQuiz() {
+      quizCard.classList.remove('shake');
+      void quizCard.offsetWidth;
+      quizCard.classList.add('shake');
+    }
+    function answerResult(result, submittedAnswer = '') {
+      if (!currentQuestion || answerUnlocked || busy || gameFinished) return;
+      const question = currentQuestion;
+      if (result === 'wrong') {
+        questionFeedback = `Ní hea. ${question.note} Bain triail eile as.`;
+        placementMessage = 'Bain triail eile as an bhfreagra. Fanann na trí chruth ar fáil.';
+        sound('wrong');
+        shakeQuiz();
+        render();
+        if (question.type === 'text') answerInput.focus();
+        return;
+      }
+      answerUnlocked = true;
+      pieces.forEach((piece) => { if (piece) piece.unlocked = true; });
+      const points = result === 'partial' ? 25 : 50;
+      updateScore(points);
+      showReward(result === 'partial' ? 'Beagnach ceart!' : 'Maith thú!', points);
+      const correction = result === 'partial' && submittedAnswer
+        ? `Bhí “${submittedAnswer.trim()}” gar don fhreagra; is é “${question.answer}” an litriú ceart.`
+        : question.note;
+      questionFeedback = result === 'partial'
+        ? `Beagnach ceart! +${points} pointe. ${correction} Tá na trí bhloc díghlasáilte.`
+        : `Maith thú! +${points} pointe. ${question.note} Tá na trí bhloc díghlasáilte.`;
+      placementMessage = 'Cuir na trí bhloc ar an gclár in ord ar bith.';
+      quizCard.classList.remove('is-happy');
+      void quizCard.offsetWidth;
+      quizCard.classList.add('is-happy');
+      sound(result === 'partial' ? 'partial' : 'correct');
+      render();
+    }
+    function completedLines() {
+      const rows = Array.from({ length: gridSize }, (_, row) => row).filter((row) => board[row].every(Boolean));
+      const columns = Array.from({ length: gridSize }, (_, column) => column).filter((column) => board.every((row) => row[column]));
+      const cells = new Set();
+      rows.forEach((row) => { for (let column = 0; column < gridSize; column += 1) cells.add(row*gridSize+column); });
+      columns.forEach((column) => { for (let row = 0; row < gridSize; row += 1) cells.add(row*gridSize+column); });
+      return { rows, columns, cells };
+    }
+    function placeBlock(cellIndex) {
+      if (gameFinished || busy) return;
+      const piece = activePiece();
+      if (!piece) return;
+      if (!piece.unlocked) { placementMessage = 'Freagair an cheist amháin chun na trí chruth a dhíghlasáil.'; render(); return; }
+      const startRow = Math.floor(cellIndex/gridSize);
+      const startColumn = cellIndex%gridSize;
+      if (!fits(piece.cells,startRow,startColumn)) {
+        placementMessage = 'Níl an cruth oiriúnach ansin. Bain triail as cill eile.';
+        boardElement.classList.remove('shake'); void boardElement.offsetWidth; boardElement.classList.add('shake');
+        render();
+        previewAt(cellIndex);
+        return;
+      }
+      const placedCells = new Set();
+      piece.cells.forEach(([row,column]) => {
+        const targetRow = startRow + row;
+        const targetColumn = startColumn + column;
+        board[targetRow][targetColumn] = piece.tone;
+        placedCells.add(targetRow * gridSize + targetColumn);
+      });
+      const piecePoints = piece.cells.length*10;
+      updateScore(piecePoints);
+      pieces[selectedPieceIndex] = null;
+      if (pieces.every((entry) => !entry)) {
+        pieces = makeTray();
+        selectedPieceIndex = 0;
+        round += 1;
+        currentQuestion = nextQuestion();
+        answerUnlocked = false;
+        wrongChoices = [];
+        questionFeedback = '';
+        placementMessage = 'Freagair ceist amháin chun na trí chruth a dhíghlasáil.';
+      }
+      else selectedPieceIndex = pieces.findIndex(Boolean);
+      const lines = completedLines();
+      const lineCount = lines.rows.length + lines.columns.length;
+      sound('place');
+      if (lineCount) {
+        lineCombo += 1;
+        const comboBonus = Math.max(0,lineCombo - 1) * 50;
+        const bonus = lineCount*100 + Math.max(0,lineCount-1)*50 + comboBonus;
+        updateScore(bonus);
+        const rewardLabel = lineCombo > 1 ? `Ar fheabhas ×${lineCombo}!` : 'Foirfe!';
+        showReward(rewardLabel, piecePoints + bonus, true);
+        placementMessage = `${lineCombo > 1 ? `Teaglama ×${lineCombo}!` : 'Foirfe!'} ${lineCount} líne glanta! +${piecePoints + bonus} pointe.`;
+        busy = true;
+        renderBoard(lines.cells, placedCells);
+        pieceTrayElement.innerHTML = pieces.map(pieceMarkup).join('');
+        renderQuiz();
+        syncPreviewSize();
+        sound('clear');
+        window.setTimeout(() => {
+          lines.cells.forEach((index) => { board[Math.floor(index/gridSize)][index%gridSize] = ''; });
+          busy = false;
+          if (!anyPieceFits()) finishGame(`Níl spás ann do na bloic eile. Scór: ${score.toLocaleString('ga-IE')}.`);
+          else render();
+        },240);
+        return;
+      }
+      lineCombo = 0;
+      showReward('Go hiontach!', piecePoints);
+      placementMessage = `Bloc curtha. +${piecePoints} pointe.`;
+      if (!anyPieceFits()) { finishGame(`Níl spás ann do na bloic eile. Scór: ${score.toLocaleString('ga-IE')}.`); return; }
+      render(placedCells);
+    }
+    function finishGame(message) {
+      gameFinished = true;
+      gameOverCopy.textContent = message;
+      sound('over');
+      render();
+    }
+    function selectPiece(index) {
+      if (!pieces[index] || gameFinished || busy) return;
+      selectedPieceIndex = index;
+      placementMessage = answerUnlocked
+        ? 'Cuir an cruth roghnaithe síos, nó roghnaigh cruth díghlasáilte eile.'
+        : 'Freagair an cheist chéanna chun na trí chruth a dhíghlasáil.';
+      render();
+    }
+    function previewAt(cellIndex) {
+      boardElement.querySelectorAll('.preview,.preview-invalid').forEach((cell) => cell.classList.remove('preview','preview-invalid'));
+      placementStatus.classList.remove('can-place','overlap');
+      const piece = activePiece();
+      if (!piece?.unlocked || gameFinished || busy) {
+        placementStatus.textContent = placementMessage;
+        return;
+      }
+      const row = Math.floor(cellIndex/gridSize);
+      const column = cellIndex%gridSize;
+      const canPlace = fits(piece.cells,row,column);
+      piece.cells.forEach(([dy,dx]) => {
+        const targetRow = row + dy;
+        const targetColumn = column + dx;
+        if (targetRow < 0 || targetRow >= gridSize || targetColumn < 0 || targetColumn >= gridSize) return;
+        boardElement.querySelector(`[data-cell="${targetRow*gridSize+targetColumn}"]`)?.classList.add(canPlace ? 'preview' : 'preview-invalid');
+      });
+      placementStatus.classList.add(canPlace ? 'can-place' : 'overlap');
+      placementStatus.textContent = canPlace ? 'Oireann sé anseo! Cuir síos é.' : 'Forluí nó as an gclár. Bain triail as áit eile.';
+    }
+    function onGameClick(event) {
+      const pieceButton = event.target.closest('[data-piece]');
+      if (pieceButton) { selectPiece(Number(pieceButton.dataset.piece)); return; }
+      const choiceButton = event.target.closest('[data-choice]');
+      if (choiceButton) {
+        if (!currentQuestion || currentQuestion.type !== 'choice' || answerUnlocked) return;
+        const choice = choiceButton.dataset.choice;
+        if (choice === currentQuestion.answer) answerResult('correct');
+        else { wrongChoices.push(choice); answerResult('wrong'); }
+        return;
+      }
+      const cell = event.target.closest('[data-cell]');
+      if (cell) { placeBlock(Number(cell.dataset.cell)); return; }
+      if (event.target.closest('#new-game,#play-again')) { sound('restart'); newGame(); }
+    }
+    function submitAnswer(event) {
+      event.preventDefault();
+      if (!currentQuestion || currentQuestion.type !== 'text' || answerUnlocked || busy || gameFinished) return;
+      answerResult(gradeTyped(answerInput.value,currentQuestion.answer),answerInput.value);
+    }
+    boardElement.addEventListener('pointerover', (event) => {
+      const cell = event.target.closest('[data-cell]');
+      if (cell) previewAt(Number(cell.dataset.cell));
+    });
+    boardElement.addEventListener('pointerleave', () => {
+      boardElement.querySelectorAll('.preview,.preview-invalid').forEach((cell) => cell.classList.remove('preview','preview-invalid'));
+      placementStatus.classList.remove('can-place','overlap');
+      placementStatus.textContent = placementMessage;
+    });
+    document.getElementById('game-shell').addEventListener('click', onGameClick);
+    gameOverElement.addEventListener('click', onGameClick);
+    answerForm.addEventListener('submit', submitAnswer);
+    if (typeof window.addEventListener === 'function') window.addEventListener('resize', fitBoard, { passive: true });
+    newGame();
+    fitBoard();
+  </script>
+</body>
+</html>
+
