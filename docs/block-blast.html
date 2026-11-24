@@ -171,10 +171,10 @@ body{overflow-y:auto;background-color:var(--paper);background-image:radial-gradi
   for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)rows[i][j]=Math.min(rows[i-1][j]+1,rows[i][j-1]+1,rows[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
   const max=Math.max(a.length,b.length);return rows[a.length][b.length]<= (max>=9?2:1);
  }
- function drawQuestion(){
+ function drawQuestion(question){
    if(!pieces.length||pieces.every(p=>p.used))makePieces();
-   currentQuestion=randomQuestion();stage='question';qSetup.hidden=true;qLive.hidden=false;$('question-heading').textContent='Your question';$('question-tag').textContent='QUESTION '+(round+1);$('question-prompt').textContent=currentQuestion.q;$('question-help').textContent=currentQuestion.help;$('answer-feedback').textContent='';$('answer-feedback').className='feedback';$('answer-options').innerHTML='';$('answer-options').hidden=currentQuestion.type!=='choice';$('answer-form').hidden=currentQuestion.type!=='text';
-   if(currentQuestion.type==='choice')currentQuestion.c.forEach((x,i)=>{const b=document.createElement('button');b.type='button';b.className='answer-choice';b.textContent=(i+1)+'. '+x;b.dataset.answer=x;$('answer-options').append(b)});
+   currentQuestion=question||randomQuestion();stage='question';qSetup.hidden=true;qLive.hidden=false;$('question-heading').textContent='Your question';$('question-tag').textContent='QUESTION '+(round+1);$('question-prompt').textContent=currentQuestion.q;$('question-help').textContent=currentQuestion.help;$('answer-feedback').textContent='';$('answer-feedback').className='feedback';$('answer-options').innerHTML='';$('answer-options').hidden=currentQuestion.type!=='choice';$('answer-form').hidden=currentQuestion.type!=='text';
+   if(currentQuestion.type==='choice')currentQuestion.c.forEach(x=>{const b=document.createElement('button');b.type='button';b.className='answer-choice';b.textContent=x;b.dataset.answer=x;$('answer-options').append(b)});
    else{ $('answer-input').value='';setTimeout(()=>$('answer-input').focus(),40)}
    $('question-prompt').focus?.();$('board-status').textContent='Answer correctly to unlock three pieces.';
  }
@@ -232,25 +232,25 @@ body{overflow-y:auto;background-color:var(--paper);background-image:radial-gradi
  $('restart-game').addEventListener('click',()=>restart());
  $('answer-options').addEventListener('click',e=>{const b=e.target.closest('[data-answer]');if(b)answer(b.dataset.answer)});
  $('answer-form').addEventListener('submit',e=>{e.preventDefault();answer($('answer-input').value)});
- let dragPiece=null,dragGhost=null,suppressBoardClickUntil=0;
+ let dragPiece=null,dragGhost=null,suppressBoardClickUntil=0,suppressPreviewUntil=0;
  function tileMetrics(){const css=getComputedStyle(boardEl),gap=parseFloat(css.columnGap)||3,pad=parseFloat(css.paddingLeft)||0;return {size:Math.max(12,(boardEl.clientWidth-pad*2-gap*(N-1))/N),gap}}
  function updateGhost(e){if(!dragGhost||!pieces[dragPiece])return;const size=shapeSize(pieces[dragPiece].shape),m=tileMetrics();dragGhost.style.left=(e.clientX+((size.w-1)*(m.size+m.gap))/2)+'px';dragGhost.style.top=(e.clientY+((size.h-1)*(m.size+m.gap))/2)+'px';}
  function startDrag(e){const item=e.target.closest('[data-piece]');if(!item||stage!=='placing')return;dragPiece=Number(item.dataset.piece);selected=dragPiece;preview=null;item.classList.add('dragging');try{item.setPointerCapture(e.pointerId)}catch{}const piece=pieces[dragPiece],size=shapeSize(piece.shape),m=tileMetrics();dragGhost=document.createElement('div');dragGhost.className='drag-ghost';dragGhost.setAttribute('aria-hidden','true');dragGhost.style.gridTemplateColumns='repeat('+size.w+','+m.size+'px)';dragGhost.style.gridTemplateRows='repeat('+size.h+','+m.size+'px)';dragGhost.style.gap=m.gap+'px';piece.shape.forEach(()=>{const block=document.createElement('span');block.className='drag-ghost-cell';block.style.background=piece.color;block.style.width=m.size+'px';block.style.height=m.size+'px';block.style.borderRadius=Math.max(3,m.size*.22)+'px';dragGhost.append(block)});document.body.append(dragGhost);[...rackEl.children].forEach((node,i)=>node.classList.toggle('selected',i===selected));updateGhost(e);if(e.pointerType==='touch')e.preventDefault();}
  function moveDrag(e){if(dragPiece===null)return;updateGhost(e);const cell=document.elementFromPoint?.(e.clientX,e.clientY)?.closest('[data-cell]');if(cell){const [r,c]=cell.dataset.cell.split(',').map(Number);if(!preview||preview.r!==r||preview.c!==c){preview={r,c};renderBoard()}}else if(preview){preview=null;renderBoard()}}
  function clearDrag(){rackEl.querySelectorAll?.('.dragging').forEach(node=>node.classList.remove('dragging'));dragGhost?.remove();dragGhost=null;dragPiece=null;}
- function endDrag(e){if(dragPiece===null)return;const cell=document.elementFromPoint?.(e.clientX,e.clientY)?.closest('[data-cell]')||(preview?boardEl.querySelector('[data-cell="'+preview.r+','+preview.c+'"]'):null);if(cell){const [r,c]=cell.dataset.cell.split(',').map(Number);suppressBoardClickUntil=Date.now()+400;place(r,c)}else{preview=null;renderBoard()}clearDrag();}
+ function endDrag(e){if(dragPiece===null)return;const cell=document.elementFromPoint?.(e.clientX,e.clientY)?.closest('[data-cell]')||(preview?boardEl.querySelector('[data-cell="'+preview.r+','+preview.c+'"]'):null);if(cell){const [r,c]=cell.dataset.cell.split(',').map(Number);suppressBoardClickUntil=Date.now()+400;suppressPreviewUntil=Date.now()+500;place(r,c)}else{preview=null;renderBoard()}clearDrag();}
  rackEl.addEventListener('pointerdown',startDrag);
  document.addEventListener('pointermove',moveDrag);
  window.addEventListener?.('pointerup',endDrag,true);
  window.addEventListener?.('pointercancel',endDrag,true);
  window.addEventListener?.('mouseup',endDrag,true);
  window.addEventListener?.('touchend',endDrag,{capture:true,passive:true});
- boardEl.addEventListener('click',e=>{const cell=e.target.closest('[data-cell]');if(!cell)return;if(Date.now()<suppressBoardClickUntil){suppressBoardClickUntil=0;return}const [r,c]=cell.dataset.cell.split(',').map(Number);cursor={r,c};if(dragPiece!==null){place(r,c);clearDrag();return}place(r,c)});
- boardEl.addEventListener('pointerover',e=>{const cell=e.target.closest('[data-cell]');if(!cell||stage!=='placing'||selected<0)return;const [r,c]=cell.dataset.cell.split(',').map(Number);preview={r,c};renderBoard()});
+ boardEl.addEventListener('click',e=>{const cell=e.target.closest('[data-cell]');if(!cell)return;if(Date.now()<suppressBoardClickUntil){suppressBoardClickUntil=0;return}const [r,c]=cell.dataset.cell.split(',').map(Number);cursor={r,c};suppressPreviewUntil=Date.now()+500;if(dragPiece!==null){place(r,c);clearDrag();return}place(r,c)});
+ boardEl.addEventListener('pointerover',e=>{const cell=e.target.closest('[data-cell]');if(!cell||stage!=='placing'||selected<0||Date.now()<suppressPreviewUntil)return;const [r,c]=cell.dataset.cell.split(',').map(Number);preview={r,c};renderBoard()});
  boardEl.addEventListener('pointerleave',()=>{preview=null;renderBoard()});
  boardEl.addEventListener('keydown',e=>{if(stage!=='placing')return;let {r,c}=cursor;if(e.key==='ArrowUp')r=Math.max(0,r-1);else if(e.key==='ArrowDown')r=Math.min(N-1,r+1);else if(e.key==='ArrowLeft')c=Math.max(0,c-1);else if(e.key==='ArrowRight')c=Math.min(N-1,c+1);else if(e.key==='Enter'||e.key===' '){e.preventDefault();place(r,c);return}else return;e.preventDefault();cursor={r,c};renderBoard()});
  $('sound-toggle').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.textContent=soundOn?'♫':'♪'});
- window.__blockTest={banks,SHAPES,answer,closeEnough,place,restart,beginQuestion:q=>{currentQuestion=q;stage='question';round++;},setBoard:rows=>{grid=rows.map(row=>row.slice())},setPieces:items=>{pieces=items.map(p=>({shape:p.shape.map(x=>x.slice()),color:p.color,used:!!p.used}));selected=0;stage='placing';render()},getState:()=>({grid:grid.map(r=>r.slice()),stage,score,lines,streak,noClearMoves,round,pieces:pieces.map(p=>({shape:p.shape.map(x=>x.slice()),color:p.color,used:p.used})),selected,subject}),canPlace};
+ window.__blockTest={banks,SHAPES,answer,closeEnough,place,restart,beginQuestion:q=>{stage='question';round++;drawQuestion(q);},setBoard:rows=>{grid=rows.map(row=>row.slice())},setPieces:items=>{pieces=items.map(p=>({shape:p.shape.map(x=>x.slice()),color:p.color,used:!!p.used}));selected=0;stage='placing';render()},getState:()=>({grid:grid.map(r=>r.slice()),stage,score,lines,streak,noClearMoves,round,pieces:pieces.map(p=>({shape:p.shape.map(x=>x.slice()),color:p.color,used:p.used})),selected,subject}),canPlace};
  restart();
 })();
 </script>
